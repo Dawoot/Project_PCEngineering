@@ -21,7 +21,29 @@
 int16_t ax,ay,az,distance=0, gx,gy,gz;
 
 int Container=0;
-double cycle=70,cycle2=70;
+double cycle=0,cycle2=0;
+
+/************************************************************************
+*ouputdata, sends data
+*Purpose: Send accelerometer & gyro data to uart
+*Input: void
+*Return: void
+************************************************************************/
+void outputdata(){
+	mpu6050_getRawData(&ax,&ay,&az,&gx,&gy,&gz);		//getsraw accelorometerdata
+	uart_puti16(ax);
+	uart_putc('\n');
+	uart_puti16(ay);
+	uart_putc('\n');
+	uart_puti16(az);
+	uart_putc('\n');
+	uart_puti16(gx);
+	uart_putc('\n');
+	uart_puti16(gy);
+	uart_putc('\n');
+	uart_puti16(gz);
+	uart_putc('\n');
+}
 /*****************************************
 *enabletrigg,enables trigger pin		 *
 *Purpose: enable the trigger pin for 10us*
@@ -52,7 +74,7 @@ void timercalc(){
 
 int main(void)
 {
-		mpu6050_init();			//initializing the gyro/accelorometer
+	mpu6050_init();			//initializing the gyro/accelorometer
 	
 	pwminit();			//initializing PWM
     
@@ -74,12 +96,14 @@ int main(void)
 	
 	EIMSK |=(1<<INT1);		//enables interrupt on INT1
 	
+	
+	
 	enabletrigg();			//turns on trigger
 	
 	turnforward();		//sets direction to forward
 	
 	initUART();			//initializing uart
-
+	
 	sei();			//enables global interrupt
 	
 	TCCR0B = (1<<CS00) | (1<<CS02);		//sets prescaler to 1024 timer0
@@ -90,21 +114,24 @@ int main(void)
     {
 		
 		timercalc();		//checks timer condition
-		mpu6050_getRawData(&ax,&ay,&az,&gx,&gy,&gz);		//getsraw accelorometerdata 
-		uart_putc('b');
-		if(distance>4 && distance<20){		//condition for sensor stopping motor
-						stop(&cycle2,&cycle); //sets to stop motor
-						PORTB |=(1<<led);			//turn on LED		
+		outputdata();
+		
+		if(distance>4 && distance<15){		//condition for sensor stopping motor
+		
+		stop(&cycle2,&cycle); //sets to stop motor
+		
+		PORTB |=(1<<led);			//turn on LED		
 			}
+			
 			else{		
+			
 			turnforward();		//set wheel direction to forward
+			
 			go(&cycle2,&cycle);		//sets the same power to both wheels
 			
 			PORTB &=~(1<<led); //turn off LED
 			
 			}
-			
-			
 		}
 }
 ISR(TIMER0_OVF_vect){
