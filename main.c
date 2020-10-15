@@ -14,20 +14,31 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
+#include "mpu6050.h"
 #include "essential.h"
 #include "uart.h"
 
-uint16_t ax,ay,az,distance=0;
+int16_t ax,ay,az,distance=0, gx,gy,gz;
 
 int Container=0;
 double cycle=70,cycle2=70;
-
+/*****************************************
+*enabletrigg,enables trigger pin		 *
+*Purpose: enable the trigger pin for 10us*
+*Input: void							 *
+*Return: void							 *
+******************************************/
 void enabletrigg(){
 	PORTB |=(1<<Trigger);
 	_delay_us(10);
 	PORTB &=~(1<<Trigger);
 }
-
+/************************************************
+*timercalc, calculate time						*	
+*Purpose: enable trigger pin and calculate time	*
+*Input: void
+*Return: void
+*************************************************/
 void timercalc(){
 	if ((PIND & (1<<PIND3)) ==0)
 	{
@@ -41,15 +52,13 @@ void timercalc(){
 
 int main(void)
 {
-	mpu6050_init();			//initializing the gyro/accelorometer
-	
-	//initUART();			//initializing uart
+		mpu6050_init();			//initializing the gyro/accelorometer
 	
 	pwminit();			//initializing PWM
     
 	DDRD = (1<<LC1) | (1<<LC2) |(1<<lpwm) |(1<<Rpwm)|(1<<RC1);		//sets all of these ports to output
 	
-	DDRB |= (1<<RC2) ;			//Set right wheel to output
+	DDRB |= (1<<RC2) ;
 	
 	DDRB |= (1<<led);				//sets these port to output
 		
@@ -69,6 +78,8 @@ int main(void)
 	
 	turnforward();		//sets direction to forward
 	
+	initUART();			//initializing uart
+
 	sei();			//enables global interrupt
 	
 	TCCR0B = (1<<CS00) | (1<<CS02);		//sets prescaler to 1024 timer0
@@ -79,30 +90,18 @@ int main(void)
     {
 		
 		timercalc();		//checks timer condition
-		
-			
-				if(distance==0 || distance>15){		//condition for sensor
-					
-				go(&cycle2,&cycle);		//sets the same power to both wheels 
-				
-				PORTB &=~(1<<led); //turn off LED
-								
+		mpu6050_getRawData(&ax,&ay,&az,&gx,&gy,&gz);		//getsraw accelorometerdata 
+		uart_putc('b');
+		if(distance>4 && distance<20){		//condition for sensor stopping motor
+						stop(&cycle2,&cycle); //sets to stop motor
+						PORTB |=(1<<led);			//turn on LED		
 			}
-			while(distance>0 && distance<15){		//condition for sensor stopping motor
-				
-			turnright(&cycle2,&cycle); //sets to turn left if it is set for forward otherwise turn right
+			else{		
+			turnforward();		//set wheel direction to forward
+			go(&cycle2,&cycle);		//sets the same power to both wheels
 			
-			PORTB |=(1<<led);			//turn on LED
+			PORTB &=~(1<<led); //turn off LED
 			
-			timercalc();		//checks timer condition 
-		/*	uart_puti16(distance);
-			uart_putc('\n');
-			*/
-			if (distance<0 && distance>10)		//turn off while loop
-			{
-				PORTB |=(1<<PORTB0);		//turns on right wheel again
-				break;
-			}
 			}
 			
 			
